@@ -63,7 +63,7 @@ if(tab=='pending')h=L.filter(m=>m.st=='pending').map(m=>card(m,'<div class="m">J
 if(tab=='seen')h=L.filter(m=>m.st=='seen').sort((a,b)=>b.upd-a.upd).map(m=>card(m,stars(m)+'<button data-a="back" data-id="'+m.id+'">Torna a pendents</button> <button data-a="del" data-id="'+m.id+'">Treu</button>')).join('')||'<p>Encara no has vist cap peli.</p>';
 if(tab=='recs')h='<div class="row"><select id="age"><option value="99">Qualsevol edat</option><option value="7">Fins a 7 anys</option><option value="12">Fins a 12 anys</option><option value="16">Fins a 16 anys</option></select><button class="p" data-a="recs">Recomana\'m pelis</button></div>'+recHtml;
 if(tab=='add')h='<div class="row"><input id="q" placeholder="Títol de la peli"><button class="p" data-a="search">Cerca</button></div>'+found.map(f=>'<div class="c"><img src="'+(f.poster_path?IMG+f.poster_path:'')+'" alt=""><div><b>'+e(f.title)+'</b> <span class="m">'+e((f.release_date||'').slice(0,4))+'</span><p class="m">'+e((f.overview||'').slice(0,150))+'</p><button class="p" data-a="add" data-id="'+f.id+'">+ Afegeix</button></div></div>').join('');
-if(tab=='cfg')h='<p class="m">Clau de TMDB (v3), token de GitHub amb permís de lectura i escriptura al contingut del repositori de dades, i el nom del repositori (usuari/repo). Es guarden només en aquest navegador.</p><input id="k1" placeholder="Clau TMDB" value="'+e(cfg.tmdb)+'"><input id="k2" type="password" placeholder="Token de GitHub" value="'+e(cfg.gh)+'"><input id="k3" placeholder="usuari/repositori-privat" value="'+e(cfg.repo)+'"><input id="k4" placeholder="pelis.json" value="'+e(cfg.path)+'"><button class="p" data-a="cfg">Desa i sincronitza</button>';
+if(tab=='cfg')h='<p class="m">Clau de TMDB (v3), token de GitHub amb permís de lectura i escriptura al contingut del repositori de dades, i el nom del repositori (usuari/repo). Es guarden només en aquest navegador. This product uses the TMDB API but is not endorsed or certified by TMDB</p><input id="k1" placeholder="Clau TMDB" value="'+e(cfg.tmdb)+'"><input id="k2" type="password" placeholder="Token de GitHub" value="'+e(cfg.gh)+'"><input id="k3" placeholder="usuari/repositori-privat" value="'+e(cfg.repo)+'"><input id="k4" placeholder="pelis.json" value="'+e(cfg.path)+'"><button class="p" data-a="cfg">Desa i sincronitza</button>';
 const keep=$('#age')?.value;$('#main').innerHTML=h;if(keep&&$('#age'))$('#age').value=keep;
 if(!cfg.tmdb&&tab!='cfg')$('#main').insertAdjacentHTML('afterbegin','<p>Primer cal posar la clau de TMDB a Configuració.</p>')}
 document.addEventListener('click',async ev=>{
@@ -80,5 +80,4 @@ if(a=='cfg'){cfg={tmdb:$('#k1').value.trim(),gh:$('#k2').value.trim(),repo:$('#k
 });
 document.addEventListener('keydown',ev=>{if(ev.key=='Enter'&&ev.target.id=='q')document.querySelector('[data-a=search]').click()});
 render();pull().then(()=>{if(on()&&!sha)push();render()});
-This product uses the TMDB API but is not endorsed or certified by TMDB
 </script></body></html>
