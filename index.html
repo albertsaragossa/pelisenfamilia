@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ca"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pelis en família</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f1fa;--fg:#1d1a3a;--card:#fff;--mut:#6b6890;--ac:#5b3fd6;--bd:#ddd8f0;--gold:#f5a524}
+@media(prefers-color-scheme:dark){:root{--bg:#14122b;--fg:#ece9ff;--card:#1f1c3d;--mut:#a29ec9;--ac:#9d8bff;--bd:#322e5c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 Nunito,system-ui,sans-serif}
+main,header{max-width:760px;margin:auto;padding:14px}
+h1{font:600 28px Fredoka,sans-serif;margin:0}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+button,select,input{font:inherit;color:inherit}
+button{border:1px solid var(--bd);background:var(--card);border-radius:20px;padding:6px 14px;cursor:pointer}
+button.on,button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
+input,select{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);margin:4px 0}
+.c{display:flex;gap:12px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin:10px 0}
+.c img{width:80px;height:120px;object-fit:cover;border-radius:6px;background:var(--bd);flex:none}
+.m{color:var(--mut);font-size:14px}.t{display:inline-block;border:1px solid var(--bd);border-radius:6px;padding:0 6px;margin:4px 4px 0 0;font-size:13px}
+.s span{font-size:24px;cursor:pointer;color:var(--bd)}.s span.f{color:var(--gold)}
+.row{display:flex;gap:8px}.row>*{flex:1}.row button{flex:none}
+#st{font-size:13px;color:var(--mut)}:focus-visible{outline:2px solid var(--ac)}
+</style></head><body>
+<header><h1>🎬 Pelis en família</h1><span id="st"></span>
+<nav id="nav"></nav></header><main id="main"></main>
+<script>
+const $=s=>document.querySelector(s),e=s=>String(s??'').replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
+const IMG='https://image.tmdb.org/t/p/w185';
+let cfg=JSON.parse(localStorage.pcfg||'{}'),db=JSON.parse(localStorage.pdb||'{"movies":[]}'),sha=null,tab='pending',found=[],recHtml='',tm;
+const live=()=>db.movies.filter(m=>!m.del);
+const T=p=>fetch('https://api.themoviedb.org/3'+p+(p.includes('?')?'&':'?')+'api_key='+cfg.tmdb+'&language=es-ES').then(r=>r.json());
+const gh=(m,b)=>fetch('https://api.github.com/repos/'+cfg.repo+'/contents/'+(cfg.path||'pelis.json'),{method:m,headers:{Authorization:'Bearer '+cfg.gh,Accept:'application/vnd.github+json'},body:b&&JSON.stringify(b)});
+const st=t=>$('#st').textContent=t, on=()=>cfg.gh&&cfg.repo;
+function merge(r){const l=Object.fromEntries(db.movies.map(m=>[m.id,m]));r.movies.forEach(m=>{if(!l[m.id]||m.upd>l[m.id].upd)l[m.id]=m});db.movies=Object.values(l)}
+async function pull(){if(!on())return;st('Sincronitzant…');try{const r=await gh('GET');if(r.status==404){sha=null;return}if(!r.ok)throw 0;const j=await r.json();sha=j.sha;merge(JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))))));localStorage.pdb=JSON.stringify(db);st('✓ Al núvol')}catch(x){st('⚠ No s\'ha pogut sincronitzar')}}
+async function push(retry){if(!on())return;st('Desant…');try{const r=await gh('PUT',{message:'Actualitza pelis',content:btoa(unescape(encodeURIComponent(JSON.stringify(db)))),sha:sha||undefined});if((r.status==409||r.status==422)&&!retry){await pull();return push(1)}if(!r.ok)throw 0;sha=(await r.json()).content.sha;st('✓ Al núvol')}catch(x){st('⚠ No s\'ha pogut desar al núvol')}}
+function save(){localStorage.pdb=JSON.stringify(db);render();clearTimeout(tm);tm=setTimeout(push,1200)}
+const ageN=c=>{if(!c)return null;if(/^(TP|A$)/i.test(c))return 0;const n=parseInt(c);return isNaN(n)?null:n};
+async function build(id){const d=await T('/movie/'+id+'?append_to_response=credits,release_dates,watch/providers');
+const es=(d.release_dates?.results||[]).find(x=>x.iso_3166_1=='ES'),cert=(es?.release_dates||[]).map(x=>x.certification).find(Boolean)||'',pr=d['watch/providers']?.results?.ES;
+return{id:d.id,title:d.title,year:(d.release_date||'').slice(0,4),poster:d.poster_path,genres:(d.genres||[]).map(g=>g.name),dir:(d.credits.crew.find(c=>c.job=='Director')||{}).name||'',cast:d.credits.cast.slice(0,6).map(c=>c.name),age:cert,prov:(pr?.flatrate||[]).map(p=>p.provider_name),tm:d.vote_average,st:'pending',r:0,upd:Date.now()}}
+async function add(id){if(live().some(m=>m.id==id))return;const old=db.movies.find(m=>m.id==id);const m=await build(id);db.movies=db.movies.filter(x=>x.id!=id);db.movies.push(m);found=[];tab='pending';save()}
+const stars=m=>'<div class="s" data-id="'+m.id+'">'+[1,2,3,4,5].map(i=>'<span data-r="'+i+'" class="'+(i<=m.r?'f':'')+'" title="'+i+'">★</span>').join('')+'</div>';
+const card=(m,x='')=>'<div class="c"><img src="'+(m.poster?IMG+m.poster:'')+'" alt=""><div><b>'+e(m.title)+'</b> <span class="m">'+e(m.year)+'</span><div class="m">'+e(m.genres.join(', '))+'</div><div class="m">Dir. '+e(m.dir)+' · '+e(m.cast.slice(0,3).join(', '))+'</div><div>'+(m.age?'<span class="t">+'+e(m.age)+'</span>':'')+m.prov.map(p=>'<span class="t">'+e(p)+'</span>').join('')+'</div>'+x+'</div></div>';
+async function recs(){const seen=live().filter(m=>m.st=='seen'&&m.r);if(!seen.length){recHtml='<p>Puntua alguna peli vista i podré recomanar-te coses.</p>';return render()}
+recHtml='<p>Buscant…</p>';render();
+const w={g:{},d:{},a:{}},bump=(o,k,v)=>o[k]=(o[k]||0)+v;
+seen.forEach(m=>{const v=m.r-3;m.genres.forEach(x=>bump(w.g,x,v));bump(w.d,m.dir,v);m.cast.forEach(x=>bump(w.a,x,v))});
+const have=new Set(live().map(m=>m.id)),cand={},base=seen.filter(m=>m.r>=4);
+for(const m of base.length?base:seen){const r=await T('/movie/'+m.id+'/recommendations');(r.results||[]).forEach(x=>{if(!have.has(x.id))cand[x.id]=(cand[x.id]||0)+m.r-2})}
+const top=Object.keys(cand).sort((a,b)=>cand[b]-cand[a]).slice(0,14),max=+$('#age')?.value||99;
+const ms=await Promise.all(top.map(build));
+ms.forEach(m=>{const why=[];let s=cand[m.id]*2+m.tm*.5;
+m.genres.forEach(x=>{if(w.g[x]>0)why.push(x);s+=w.g[x]||0});
+if(w.d[m.dir]){s+=3*w.d[m.dir];if(w.d[m.dir]>0)why.push('director '+m.dir)}
+m.cast.forEach(x=>{if(w.a[x]){s+=w.a[x];if(w.a[x]>0)why.push(x)}});m.sc=s;m.why=why});
+const ok=ms.filter(m=>{const a=ageN(m.age);return a==null||a<=max}).sort((a,b)=>b.sc-a.sc).slice(0,10);
+window.R=Object.fromEntries(ok.map(m=>[m.id,m]));
+recHtml=ok.length?ok.map(m=>card(m,'<div class="m">Nota general: '+m.tm.toFixed(1)+(m.why.length?' · Perquè t\'agrada: '+e(m.why.slice(0,4).join(', ')):'')+'</div><button class="p" data-a="addr" data-id="'+m.id+'">+ Afegeix a pendents</button>')).join(''):'<p>No he trobat res amb aquest filtre d\'edat.</p>';render()}
+function render(){
+$('#nav').innerHTML=[['pending','Pendents'],['seen','Vistes'],['recs','Recomanacions'],['add','Afegir'],['cfg','Configuració']].map(([k,l])=>'<button data-a="tab" data-id="'+k+'" class="'+(tab==k?'on':'')+'">'+l+'</button>').join('');
+let h='';const L=live();
+if(tab=='pending')h=L.filter(m=>m.st=='pending').map(m=>card(m,'<div class="m">Ja l\'heu vista? Puntua-la:</div>'+stars(m)+'<button data-a="del" data-id="'+m.id+'">Treu</button>')).join('')||'<p>Cap peli pendent. Afegeix-ne a la pestanya Afegir.</p>';
+if(tab=='seen')h=L.filter(m=>m.st=='seen').sort((a,b)=>b.upd-a.upd).map(m=>card(m,stars(m)+'<button data-a="back" data-id="'+m.id+'">Torna a pendents</button> <button data-a="del" data-id="'+m.id+'">Treu</button>')).join('')||'<p>Encara no has vist cap peli.</p>';
+if(tab=='recs')h='<div class="row"><select id="age"><option value="99">Qualsevol edat</option><option value="7">Fins a 7 anys</option><option value="12">Fins a 12 anys</option><option value="16">Fins a 16 anys</option></select><button class="p" data-a="recs">Recomana\'m pelis</button></div>'+recHtml;
+if(tab=='add')h='<div class="row"><input id="q" placeholder="Títol de la peli"><button class="p" data-a="search">Cerca</button></div>'+found.map(f=>'<div class="c"><img src="'+(f.poster_path?IMG+f.poster_path:'')+'" alt=""><div><b>'+e(f.title)+'</b> <span class="m">'+e((f.release_date||'').slice(0,4))+'</span><p class="m">'+e((f.overview||'').slice(0,150))+'</p><button class="p" data-a="add" data-id="'+f.id+'">+ Afegeix</button></div></div>').join('');
+if(tab=='cfg')h='<p class="m">Clau de TMDB (v3), token de GitHub amb permís de lectura i escriptura al contingut del repositori de dades, i el nom del repositori (usuari/repo). Es guarden només en aquest navegador.</p><input id="k1" placeholder="Clau TMDB" value="'+e(cfg.tmdb)+'"><input id="k2" type="password" placeholder="Token de GitHub" value="'+e(cfg.gh)+'"><input id="k3" placeholder="usuari/repositori-privat" value="'+e(cfg.repo)+'"><input id="k4" placeholder="pelis.json" value="'+e(cfg.path)+'"><button class="p" data-a="cfg">Desa i sincronitza</button>';
+const keep=$('#age')?.value;$('#main').innerHTML=h;if(keep&&$('#age'))$('#age').value=keep;
+if(!cfg.tmdb&&tab!='cfg')$('#main').insertAdjacentHTML('afterbegin','<p>Primer cal posar la clau de TMDB a Configuració.</p>')}
+document.addEventListener('click',async ev=>{
+const s=ev.target.closest('.s span');if(s){const m=db.movies.find(x=>x.id==s.parentNode.dataset.id);m.r=+s.dataset.r;m.st='seen';m.upd=Date.now();return save()}
+const b=ev.target.closest('button[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id,m=db.movies.find(x=>x.id==id);
+if(a=='tab'){tab=id;render()}
+if(a=='del'){m.del=true;m.upd=Date.now();save()}
+if(a=='back'){m.st='pending';m.r=0;m.upd=Date.now();save()}
+if(a=='search'){const q=$('#q').value.trim();if(q){found=(await T('/search/movie?query='+encodeURIComponent(q))).results?.slice(0,6)||[];render();$('#q').value=q}}
+if(a=='add')add(id);
+if(a=='addr'){const x=window.R[id];x.upd=Date.now();db.movies=db.movies.filter(y=>y.id!=x.id);db.movies.push(x);delete window.R[id];b.closest('.c').remove();save()}
+if(a=='recs')recs();
+if(a=='cfg'){cfg={tmdb:$('#k1').value.trim(),gh:$('#k2').value.trim(),repo:$('#k3').value.trim(),path:$('#k4').value.trim()};localStorage.pcfg=JSON.stringify(cfg);await pull();if(on()&&!sha)await push();tab='pending';render()}
+});
+document.addEventListener('keydown',ev=>{if(ev.key=='Enter'&&ev.target.id=='q')document.querySelector('[data-a=search]').click()});
+render();pull().then(()=>{if(on()&&!sha)push();render()});
+</script></body></html>
