@@ -80,4 +80,5 @@ if(a=='cfg'){cfg={tmdb:$('#k1').value.trim(),gh:$('#k2').value.trim(),repo:$('#k
 });
 document.addEventListener('keydown',ev=>{if(ev.key=='Enter'&&ev.target.id=='q')document.querySelector('[data-a=search]').click()});
 render();pull().then(()=>{if(on()&&!sha)push();render()});
+This product uses the TMDB API but is not endorsed or certified by TMDB
 </script></body></html>
