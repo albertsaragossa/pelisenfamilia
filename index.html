@@ -20,6 +20,9 @@ input,select{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radiu
 .row{display:flex;gap:8px}.row>*{flex:1}.row button{flex:none}
 #st{font-size:13px;color:var(--mut)}
 .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:12px;margin:10px 0}
+.sl{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 0 6px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.sl button{flex:none;white-space:nowrap;scroll-snap-align:start}
+.fl{font-size:12px;color:var(--mut);margin-top:6px}
 .k{min-width:0}.pw{position:relative}
 .pw img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;background:var(--bd);display:block}
 .x{position:absolute;right:5px;bottom:5px;width:30px;height:30px;padding:0;border-radius:50%;background:var(--ac);color:#fff;border-color:var(--ac);font-size:20px;line-height:1}
@@ -32,7 +35,7 @@ input,select{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radiu
 <script>
 const $=s=>document.querySelector(s),e=s=>String(s??'').replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
 const IMG='https://image.tmdb.org/t/p/w185';
-let cfg=JSON.parse(localStorage.pcfg||'{}'),db=JSON.parse(localStorage.pdb||'{"movies":[]}'),sha=null,tab='pending',found=[],recHtml='',recList=[],open=new Set(),tm;
+let cfg=JSON.parse(localStorage.pcfg||'{}'),db=JSON.parse(localStorage.pdb||'{"movies":[]}'),sha=null,tab='pending',found=[],recHtml='',recList=[],open=new Set(),flt={g:'',d:'',p:''},tm;
 const live=()=>db.movies.filter(m=>!m.del);
 const T=p=>fetch('https://api.themoviedb.org/3'+p+(p.includes('?')?'&':'?')+'api_key='+cfg.tmdb+'&language=es-ES').then(r=>r.json());
 const gh=(m,b)=>fetch('https://api.github.com/repos/'+cfg.repo+'/contents/'+(cfg.path||'pelis.json'),{method:m,headers:{Authorization:'Bearer '+cfg.gh,Accept:'application/vnd.github+json'},body:b&&JSON.stringify(b)});
@@ -47,6 +50,9 @@ const es=(d.release_dates?.results||[]).find(x=>x.iso_3166_1=='ES'),cert=(es?.re
 return{id:d.id,title:d.title,year:(d.release_date||'').slice(0,4),poster:d.poster_path,genres:(d.genres||[]).map(g=>g.name),dir:(d.credits.crew.find(c=>c.job=='Director')||{}).name||'',cast:d.credits.cast.slice(0,6).map(c=>c.name),age:cert,prov:(pr?.flatrate||[]).map(p=>p.provider_name),tm:d.vote_average,st:'pending',r:0,upd:Date.now()}}
 async function add(id){if(live().some(m=>m.id==id))return;const old=db.movies.find(m=>m.id==id);const m=await build(id);db.movies=db.movies.filter(x=>x.id!=id);db.movies.push(m);found=[];tab='pending';save()}
 const stars=m=>'<div class="s" data-id="'+m.id+'">'+[1,2,3,4,5].map(i=>'<span data-r="'+i+'" class="'+(i<=m.r?'f':'')+'" title="'+i+'">★</span>').join('')+'</div>';
+const dec=m=>m.year?Math.floor(m.year/10)*10+'s':'';
+const chips=(k,t,vals)=>{const c={};vals.forEach(v=>c[v]=(c[v]||0)+1);const ks=Object.keys(c).sort(k=='d'?(a,b)=>b.localeCompare(a):(a,b)=>c[b]-c[a]);return ks.length?'<div class="fl">'+t+'</div><div class="sl">'+ks.map(v=>'<button data-a="f" data-k="'+k+'" data-id="'+e(v)+'" class="'+(flt[k]==v?'on':'')+'" aria-pressed="'+(flt[k]==v)+'">'+e(v)+' '+c[v]+'</button>').join('')+'</div>':''};
+const filters=b=>chips('g','Gènere',b.flatMap(m=>m.genres))+chips('d','Dècada',b.map(dec).filter(Boolean))+chips('p','Plataforma',b.flatMap(m=>m.prov));
 const grid=(a,z)=>a.length?'<div class="g">'+a.join('')+'</div>':z;
 const rx=m=>'<div class="m">Nota general: '+m.tm.toFixed(1)+(m.why&&m.why.length?' · Perquè t\'agrada: '+e(m.why.slice(0,4).join(', ')):'')+'</div><button class="p" data-a="addr" data-id="'+m.id+'">+ Afegeix a pendents</button>';
 const card=(m,x='')=>{const o=open.has(m.id);return '<div class="k'+(o?' o':'')+'"><div class="pw"><img src="'+(m.poster?IMG+m.poster:'')+'" alt=""><button class="x" data-a="tog" data-id="'+m.id+'" aria-expanded="'+o+'" aria-label="'+(o?'Tanca la informació':'Amplia la informació')+'">'+(o?'−':'+')+'</button></div><div class="d"><b>'+e(m.title)+'</b>'+(o?'<span class="m">'+e(m.year)+'</span><div class="m">'+e(m.genres.join(', '))+'</div><div class="m">Dir. '+e(m.dir)+' · '+e(m.cast.slice(0,3).join(', '))+'</div><div>'+(m.age?'<span class="t">+'+e(m.age)+'</span>':'')+m.prov.map(p=>'<span class="t">'+e(p)+'</span>').join('')+'</div>'+x:'')+'</div></div>'};
@@ -67,17 +73,18 @@ recList=ok;recHtml=ok.length?'':'<p>No he trobat res amb aquest filtre d\'edat.<
 function render(){
 $('#nav').innerHTML=[['pending','Pendents'],['seen','Vistes'],['recs','Recomanacions'],['add','Afegir'],['cfg','Configuració']].map(([k,l])=>'<button data-a="tab" data-id="'+k+'" class="'+(tab==k?'on':'')+'">'+l+'</button>').join('');
 let h='';const L=live();
-if(tab=='pending')h=grid(L.filter(m=>m.st=='pending').map(m=>card(m,'<div class="m">Ja l\'heu vista? Puntua-la:</div>'+stars(m)+'<button data-a="del" data-id="'+m.id+'">Treu</button>')),'<p>Cap peli pendent. Afegeix-ne a la pestanya Afegir.</p>');
-if(tab=='seen')h=grid(L.filter(m=>m.st=='seen').sort((a,b)=>b.upd-a.upd).map(m=>card(m,stars(m)+'<button data-a="back" data-id="'+m.id+'">Torna a pendents</button> <button data-a="del" data-id="'+m.id+'">Treu</button>')),'<p>Encara no has vist cap peli.</p>');
+if(tab=='pending'||tab=='seen'){const base=L.filter(m=>m.st==tab),list=base.filter(m=>(!flt.g||m.genres.includes(flt.g))&&(!flt.d||dec(m)==flt.d)&&(!flt.p||m.prov.includes(flt.p)));if(tab=='seen')list.sort((a,b)=>b.upd-a.upd);
+h=filters(base)+grid(list.map(m=>card(m,tab=='pending'?'<div class="m">Ja l\'heu vista? Puntua-la:</div>'+stars(m)+'<button data-a="del" data-id="'+m.id+'">Treu</button>':stars(m)+'<button data-a="back" data-id="'+m.id+'">Torna a pendents</button> <button data-a="del" data-id="'+m.id+'">Treu</button>')),base.length?'<p>Cap peli amb aquests filtres.</p>':tab=='pending'?'<p>Cap peli pendent. Afegeix-ne a la pestanya Afegir.</p>':'<p>Encara no has vist cap peli.</p>')}
 if(tab=='recs')h='<div class="row"><select id="age"><option value="99">Qualsevol edat</option><option value="7">Fins a 7 anys</option><option value="12">Fins a 12 anys</option><option value="16">Fins a 16 anys</option></select><button class="p" data-a="recs">Recomana\'m pelis</button></div>'+recHtml+grid(recList.map(m=>card(m,rx(m))),'');
 if(tab=='add')h='<div class="row"><input id="q" placeholder="Títol de la peli"><button class="p" data-a="search">Cerca</button></div>'+found.map(f=>'<div class="c"><img src="'+(f.poster_path?IMG+f.poster_path:'')+'" alt=""><div><b>'+e(f.title)+'</b> <span class="m">'+e((f.release_date||'').slice(0,4))+'</span><p class="m">'+e((f.overview||'').slice(0,150))+'</p><button class="p" data-a="add" data-id="'+f.id+'">+ Afegeix</button></div></div>').join('');
 if(tab=='cfg')h='<p class="m">Clau de TMDB (v3), token de GitHub amb permís de lectura i escriptura al contingut del repositori de dades, i el nom del repositori (usuari/repo). Es guarden només en aquest navegador.</p><input id="k1" placeholder="Clau TMDB" value="'+e(cfg.tmdb)+'"><input id="k2" type="password" placeholder="Token de GitHub" value="'+e(cfg.gh)+'"><input id="k3" placeholder="usuari/repositori-privat" value="'+e(cfg.repo)+'"><input id="k4" placeholder="pelis.json" value="'+e(cfg.path)+'"><button class="p" data-a="cfg">Desa i sincronitza</button> <button data-a="link">Copia l\'enllaç per a un altre dispositiu</button><p class="m">L\'enllaç inclou el token: tracta\'l com una contrasenya.</p>';
-const keep=$('#age')?.value;$('#main').innerHTML=h;if(keep&&$('#age'))$('#age').value=keep;
+const keep=$('#age')?.value,sc=[...document.querySelectorAll('.sl')].map(x=>x.scrollLeft);$('#main').innerHTML=h;document.querySelectorAll('.sl').forEach((x,i)=>x.scrollLeft=sc[i]||0);if(keep&&$('#age'))$('#age').value=keep;
 if(!cfg.tmdb&&tab!='cfg')$('#main').insertAdjacentHTML('afterbegin','<p>Primer cal posar la clau de TMDB a Configuració.</p>')}
 document.addEventListener('click',async ev=>{
 const s=ev.target.closest('.s span');if(s){const m=db.movies.find(x=>x.id==s.parentNode.dataset.id);m.r=+s.dataset.r;m.st='seen';m.upd=Date.now();return save()}
 const b=ev.target.closest('button[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id,m=db.movies.find(x=>x.id==id);
-if(a=='tab'){tab=id;render()}
+if(a=='tab'){tab=id;flt={g:'',d:'',p:''};render()}
+if(a=='f'){const k=b.dataset.k;flt[k]=flt[k]==id?'':id;render()}
 if(a=='tog'){const n=+id;open.has(n)?open.delete(n):open.add(n);render()}
 if(a=='link'){await navigator.clipboard.writeText(location.origin+location.pathname+'#cfg='+btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))));st('Enllaç copiat')}
 if(a=='del'){m.del=true;m.upd=Date.now();save()}
