@@ -20,9 +20,9 @@ input,select{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radiu
 .row{display:flex;gap:8px}.row>*{flex:1}.row button{flex:none}
 #st{font-size:13px;color:var(--mut)}
 .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:12px;margin:10px 0}
-.sl{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 0 6px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
-.sl button{flex:none;white-space:nowrap;scroll-snap-align:start}
-.fl{font-size:12px;color:var(--mut);margin-top:6px}
+.sl{display:flex;gap:4px;overflow-x:auto;scroll-snap-type:x proximity;padding:0 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.sl button{flex:none;white-space:nowrap;scroll-snap-align:start;font-size:12px;line-height:1.4;padding:1px 9px;border-radius:12px}.sl button i{font-style:normal;opacity:.6;margin-left:2px}
+.fl{font-size:11px;color:var(--mut);margin-top:3px}
 .k{min-width:0}.pw{position:relative}
 .pw img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;background:var(--bd);display:block}
 .x{position:absolute;right:5px;bottom:5px;width:30px;height:30px;padding:0;border-radius:50%;background:var(--ac);color:#fff;border-color:var(--ac);font-size:20px;line-height:1}
@@ -37,7 +37,7 @@ const $=s=>document.querySelector(s),e=s=>String(s??'').replace(/[&<>"]/g,c=>'&#
 const IMG='https://image.tmdb.org/t/p/w185';
 let cfg=JSON.parse(localStorage.pcfg||'{}'),db=JSON.parse(localStorage.pdb||'{"movies":[]}'),sha=null,tab='pending',found=[],recHtml='',recList=[],open=new Set(),flt={g:'',d:'',p:''},tm;
 const live=()=>db.movies.filter(m=>!m.del);
-const T=p=>fetch('https://api.themoviedb.org/3'+p+(p.includes('?')?'&':'?')+'api_key='+cfg.tmdb+'&language=es-ES').then(r=>r.json());
+const T=p=>fetch('https://api.themoviedb.org/3'+p+(p.includes('?')?'&':'?')+'api_key='+cfg.tmdb+'&language=ca-ES').then(r=>r.json());
 const gh=(m,b)=>fetch('https://api.github.com/repos/'+cfg.repo+'/contents/'+(cfg.path||'pelis.json'),{method:m,headers:{Authorization:'Bearer '+cfg.gh,Accept:'application/vnd.github+json'},body:b&&JSON.stringify(b)});
 const st=t=>$('#st').textContent=t, on=()=>cfg.gh&&cfg.repo;
 function merge(r){const l=Object.fromEntries(db.movies.map(m=>[m.id,m]));r.movies.forEach(m=>{if(!l[m.id]||m.upd>l[m.id].upd)l[m.id]=m});db.movies=Object.values(l)}
@@ -47,11 +47,11 @@ function save(){localStorage.pdb=JSON.stringify(db);render();clearTimeout(tm);tm
 const ageN=c=>{if(!c)return null;if(/^(TP|A$)/i.test(c))return 0;const n=parseInt(c);return isNaN(n)?null:n};
 async function build(id){const d=await T('/movie/'+id+'?append_to_response=credits,release_dates,watch/providers');
 const es=(d.release_dates?.results||[]).find(x=>x.iso_3166_1=='ES'),cert=(es?.release_dates||[]).map(x=>x.certification).find(Boolean)||'',pr=d['watch/providers']?.results?.ES;
-return{id:d.id,title:d.title,year:(d.release_date||'').slice(0,4),poster:d.poster_path,genres:(d.genres||[]).map(g=>g.name),dir:(d.credits.crew.find(c=>c.job=='Director')||{}).name||'',cast:d.credits.cast.slice(0,6).map(c=>c.name),age:cert,prov:(pr?.flatrate||[]).map(p=>p.provider_name),tm:d.vote_average,st:'pending',r:0,upd:Date.now()}}
+return{id:d.id,ca:1,title:d.title,year:(d.release_date||'').slice(0,4),poster:d.poster_path,genres:(d.genres||[]).map(g=>g.name),dir:(d.credits.crew.find(c=>c.job=='Director')||{}).name||'',cast:d.credits.cast.slice(0,6).map(c=>c.name),age:cert,prov:(pr?.flatrate||[]).map(p=>p.provider_name),tm:d.vote_average,st:'pending',r:0,upd:Date.now()}}
 async function add(id){if(live().some(m=>m.id==id))return;const old=db.movies.find(m=>m.id==id);const m=await build(id);db.movies=db.movies.filter(x=>x.id!=id);db.movies.push(m);found=[];tab='pending';save()}
 const stars=m=>'<div class="s" data-id="'+m.id+'">'+[1,2,3,4,5].map(i=>'<span data-r="'+i+'" class="'+(i<=m.r?'f':'')+'" title="'+i+'">★</span>').join('')+'</div>';
 const dec=m=>m.year?Math.floor(m.year/10)*10+'s':'';
-const chips=(k,t,vals)=>{const c={};vals.forEach(v=>c[v]=(c[v]||0)+1);const ks=Object.keys(c).sort(k=='d'?(a,b)=>b.localeCompare(a):(a,b)=>c[b]-c[a]);return ks.length?'<div class="fl">'+t+'</div><div class="sl">'+ks.map(v=>'<button data-a="f" data-k="'+k+'" data-id="'+e(v)+'" class="'+(flt[k]==v?'on':'')+'" aria-pressed="'+(flt[k]==v)+'">'+e(v)+' '+c[v]+'</button>').join('')+'</div>':''};
+const chips=(k,t,vals)=>{const c={};vals.forEach(v=>c[v]=(c[v]||0)+1);const ks=Object.keys(c).sort(k=='d'?(a,b)=>b.localeCompare(a):(a,b)=>c[b]-c[a]);return ks.length?'<div class="fl">'+t+'</div><div class="sl">'+ks.map(v=>'<button data-a="f" data-k="'+k+'" data-id="'+e(v)+'" class="'+(flt[k]==v?'on':'')+'" aria-pressed="'+(flt[k]==v)+'">'+e(v)+' <i>'+c[v]+'</i></button>').join('')+'</div>':''};
 const filters=b=>chips('g','Gènere',b.flatMap(m=>m.genres))+chips('d','Dècada',b.map(dec).filter(Boolean))+chips('p','Plataforma',b.flatMap(m=>m.prov));
 const grid=(a,z)=>a.length?'<div class="g">'+a.join('')+'</div>':z;
 const rx=m=>'<div class="m">Nota general: '+m.tm.toFixed(1)+(m.why&&m.why.length?' · Perquè t\'agrada: '+e(m.why.slice(0,4).join(', ')):'')+'</div><button class="p" data-a="addr" data-id="'+m.id+'">+ Afegeix a pendents</button>';
@@ -70,6 +70,7 @@ if(w.d[m.dir]){s+=3*w.d[m.dir];if(w.d[m.dir]>0)why.push('director '+m.dir)}
 m.cast.forEach(x=>{if(w.a[x]){s+=w.a[x];if(w.a[x]>0)why.push(x)}});m.sc=s;m.why=why});
 const ok=ms.filter(m=>{const a=ageN(m.age);return a==null||a<=max}).sort((a,b)=>b.sc-a.sc).slice(0,10);
 recList=ok;recHtml=ok.length?'':'<p>No he trobat res amb aquest filtre d\'edat.</p>';render()}
+async function catalanize(){if(!cfg.tmdb)return;let ch=0;for(const m of live().filter(m=>!m.ca).slice(0,40)){try{const d=await T('/movie/'+m.id);if(!d.title)continue;m.title=d.title;m.genres=(d.genres||[]).map(g=>g.name);m.ca=1;ch=1}catch(x){}}if(ch){localStorage.pdb=JSON.stringify(db);render();clearTimeout(tm);tm=setTimeout(push,1200)}}
 function render(){
 $('#nav').innerHTML=[['pending','Pendents'],['seen','Vistes'],['recs','Recomanacions'],['add','Afegir'],['cfg','Configuració']].map(([k,l])=>'<button data-a="tab" data-id="'+k+'" class="'+(tab==k?'on':'')+'">'+l+'</button>').join('');
 let h='';const L=live();
@@ -93,10 +94,10 @@ if(a=='search'){const q=$('#q').value.trim();if(q){found=(await T('/search/movie
 if(a=='add')add(id);
 if(a=='addr'){const x=recList.find(y=>y.id==id);x.upd=Date.now();db.movies=db.movies.filter(y=>y.id!=x.id);db.movies.push(x);recList=recList.filter(y=>y.id!=x.id);save()}
 if(a=='recs')recs();
-if(a=='cfg'){cfg={tmdb:$('#k1').value.trim(),gh:$('#k2').value.trim(),repo:$('#k3').value.trim(),path:$('#k4').value.trim()};localStorage.pcfg=JSON.stringify(cfg);await pull();if(on()&&!sha)await push();tab='pending';render()}
+if(a=='cfg'){cfg={tmdb:$('#k1').value.trim(),gh:$('#k2').value.trim(),repo:$('#k3').value.trim(),path:$('#k4').value.trim()};localStorage.pcfg=JSON.stringify(cfg);await pull();if(on()&&!sha)await push();tab='pending';render();catalanize()}
 });
 document.addEventListener('keydown',ev=>{if(ev.key=='Enter'&&ev.target.id=='q')document.querySelector('[data-a=search]').click()});
 if(location.hash.startsWith('#cfg=')){try{cfg=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(5)))));localStorage.pcfg=JSON.stringify(cfg)}catch(x){}history.replaceState(null,'',location.pathname)}
 navigator.storage?.persist?.();
-render();pull().then(()=>{if(on()&&!sha)push();render()});
+render();pull().then(()=>{if(on()&&!sha)push();render();catalanize()});
 </script></body></html>
